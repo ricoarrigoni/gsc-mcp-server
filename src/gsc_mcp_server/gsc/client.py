@@ -18,7 +18,7 @@ import httpx
 
 from ..auth.provider import AuthProvider
 from ..constants import URL_INSPECTION_URL, WEBMASTERS_BASE
-from ..errors import ApiError, message_for_status
+from ..errors import ApiError, GscError, NetworkError, message_for_status
 
 logger = logging.getLogger(__name__)
 
@@ -46,11 +46,35 @@ class GscClient:
         if body is not None:
             headers["Content-Type"] = "application/json"
 
-        last: ApiError | None = None
+        last: GscError | None = None
         for attempt in range(1, MAX_ATTEMPTS + 1):
-            response = self._client.request(method, url, headers=headers, json=body)
+            try:
+                response = self._client.request(method, url, headers=headers, json=body)
+            except httpx.TransportError as exc:
+                # Timeouts, DNS failures, dropped connections: transient, so
+                # retried like a 503. Never surfaced as a bare exception.
+                last = NetworkError(
+                    f"Could not reach Google ({type(exc).__name__}) after "
+                    f"{attempt} attempt{'' if attempt == 1 else 's'}. Check the "
+                    "network connection and try again."
+                )
+                if attempt == MAX_ATTEMPTS:
+                    raise last from exc
+                self._backoff(method, url, type(exc).__name__, attempt)
+                continue
+
             if response.is_success:
-                return response.json() if response.content else {}
+                if not response.content:
+                    return {}
+                try:
+                    return response.json()
+                except ValueError as exc:
+                    raise ApiError(
+                        response.status_code,
+                        "Search Console returned a response that is not JSON. "
+                        "Try again; if it persists, Google may be having an "
+                        "outage.",
+                    ) from exc
 
             text = response.text[:1000]
             error = ApiError(
@@ -67,20 +91,23 @@ class GscClient:
                 raise error
 
             last = error
-            delay = min(2 ** (attempt - 1), 8) + random.uniform(0, 0.3)
-            # Never log the body: it can echo query strings.
-            logger.warning(
-                "GSC %s %s -> %s, retry %s/%s in %.1fs",
-                method,
-                _redact_url(url),
-                response.status_code,
-                attempt,
-                MAX_ATTEMPTS,
-                delay,
-            )
-            time.sleep(delay)
+            self._backoff(method, url, str(response.status_code), attempt)
 
         raise last or ApiError(0, "Request failed with no response.")
+
+    def _backoff(self, method: str, url: str, cause: str, attempt: int) -> None:
+        delay = min(2 ** (attempt - 1), 8) + random.uniform(0, 0.3)
+        # Never log the body: it can echo query strings.
+        logger.warning(
+            "GSC %s %s -> %s, retry %s/%s in %.1fs",
+            method,
+            _redact_url(url),
+            cause,
+            attempt,
+            MAX_ATTEMPTS,
+            delay,
+        )
+        time.sleep(delay)
 
     # --- API surface -------------------------------------------------------
     def list_sites(self) -> list[dict[str, Any]]:

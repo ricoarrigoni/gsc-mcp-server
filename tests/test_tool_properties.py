@@ -46,3 +46,16 @@ async def test_every_tool_is_annotated_read_only(harness):
         assert tool.annotations.read_only_hint is True
         assert tool.annotations.destructive_hint is False
         assert tool.annotations.open_world_hint is False
+
+
+async def test_unexpected_exceptions_come_back_as_ok_false(harness, monkeypatch):
+    server = harness.server()
+
+    def boom(*args, **kwargs):
+        raise KeyError("surprise")
+
+    monkeypatch.setattr(harness.context.client, "list_sitemaps", boom)
+    out = await harness.call(server, "list_sitemaps", siteUrl="https://example.com/")
+    assert out.structured_content["ok"] is False
+    assert out.structured_content["reason"] == "unexpected_error"
+    assert "KeyError" in out.structured_content["message"]

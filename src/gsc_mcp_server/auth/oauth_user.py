@@ -8,6 +8,7 @@ See docs/setup-oauth.md.
 from __future__ import annotations
 
 import logging
+import threading
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -23,6 +24,8 @@ logger = logging.getLogger(__name__)
 class OAuthUserProvider:
     def __init__(self, cfg: Config) -> None:
         self._cfg = cfg
+        # Tools run in worker threads; one refresh at a time.
+        self._lock = threading.Lock()
         self._store = TokenStore(cfg.state_dir)
         self._creds: Credentials | None = None
 
@@ -38,6 +41,10 @@ class OAuthUserProvider:
         return tuple(creds.scopes or ())
 
     def credentials(self) -> Credentials:
+        with self._lock:
+            return self._fresh_credentials()
+
+    def _fresh_credentials(self) -> Credentials:
         creds = self._load()
         if not creds.valid:
             try:

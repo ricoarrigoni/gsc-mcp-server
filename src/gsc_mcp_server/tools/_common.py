@@ -147,6 +147,16 @@ def run_tool(
             f"Could not write the file: {exc.strerror or exc}. Check "
             "GSC_EXPORT_DIR points at a writable directory.",
         )
+    except Exception as exc:
+        # Anything unforeseen still comes back as ok: false with a next step,
+        # never as a bare MCP error. Log the type only: messages can carry
+        # request data.
+        logger.error("tool=%s unexpected %s", tool, type(exc).__name__)
+        return failure_result(
+            "unexpected_error",
+            f"Unexpected error ({type(exc).__name__}). Try again. If it "
+            "repeats, run `gsc-mcp-server doctor` and report the server log.",
+        )
     finally:
         log_call(
             tool,

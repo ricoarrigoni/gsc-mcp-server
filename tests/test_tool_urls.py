@@ -103,3 +103,28 @@ async def test_inspect_url_refuses_locally_at_the_soft_cap(harness):
     assert results[1]["reason"] == "quota_guard"
     assert len(harness.requests) == 1
     assert out.structured_content["quotaUsedToday"] == URL_INSPECTION_SOFT_CAP
+
+
+async def test_network_error_on_one_url_is_reported_not_raised(harness, monkeypatch):
+    monkeypatch.setattr("gsc_mcp_server.gsc.client.time.sleep", lambda _: None)
+    calls = {"n": 0}
+
+    def flaky(request):
+        calls["n"] += 1
+        harness.requests.append(request)
+        if calls["n"] <= 4:  # every attempt for the first URL
+            raise httpx.ReadTimeout("timed out", request=request)
+        return httpx.Response(200, json=load_fixture("url_inspection.json"))
+
+    server = harness.server()
+    harness.context.client._client = httpx.Client(transport=httpx.MockTransport(flaky))
+    out = await harness.call(
+        server,
+        "inspect_url",
+        siteUrl=SITE,
+        urls=["https://example.com/a", "https://example.com/widgets"],
+    )
+    first, second = out.structured_content["results"]
+    assert first["reason"] == "network_error"
+    assert second["ok"] is True
+    assert out.structured_content["ok"] is True

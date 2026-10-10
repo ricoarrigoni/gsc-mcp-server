@@ -56,6 +56,12 @@ class ApiError(GscError):
         self.body = body
 
 
+class NetworkError(GscError):
+    """Google could not be reached: timeout, DNS, dropped connection."""
+
+    reason = "network_error"
+
+
 class QuotaError(GscError):
     reason = "quota_error"
 

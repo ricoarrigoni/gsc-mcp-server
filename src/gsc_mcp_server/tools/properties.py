@@ -34,6 +34,13 @@ def register(server, context) -> None:
         except GscError as exc:
             log_call("list_properties", started, outcome=exc.reason)
             return failure(exc.reason, str(exc))
+        except Exception as exc:
+            log_call("list_properties", started, outcome="unexpected_error")
+            return failure(
+                "unexpected_error",
+                f"Unexpected error ({type(exc).__name__}). Try again. If it "
+                "repeats, run `gsc-mcp-server doctor` and report the server log.",
+            )
         allowed = [s for s in sites if context.config.allows(s.get("siteUrl", ""))]
 
         log_call("list_properties", started, rows=len(allowed))

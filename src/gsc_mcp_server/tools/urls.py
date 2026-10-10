@@ -13,7 +13,7 @@ from mcp.types import CallToolResult
 from pydantic import Field
 
 from ..constants import URL_INSPECTION_DAILY_CAP, URL_INSPECTION_MAX_URLS_PER_CALL
-from ..errors import ApiError
+from ..errors import GscError
 from ..gsc.quota import InspectionQuota
 from ._common import READ_ONLY, SiteUrl, not_allowed, result, run_tool
 
@@ -134,7 +134,7 @@ def register(server, context) -> None:
                 try:
                     raw = context.client.inspect_url(siteUrl, url, languageCode)
                     items.append(summarise(url, raw))
-                except ApiError as exc:
+                except GscError as exc:
                     items.append(
                         {
                             "url": url,

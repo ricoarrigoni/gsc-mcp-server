@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import stat
+import threading
 
 from google.auth.transport.requests import Request
 from google.oauth2 import service_account
@@ -22,6 +23,8 @@ from ..errors import AuthNotConfiguredError, TokenError
 class ServiceAccountProvider:
     def __init__(self, cfg: Config) -> None:
         self._cfg = cfg
+        # Tools run in worker threads; one refresh at a time.
+        self._lock = threading.Lock()
         self._creds: service_account.Credentials | None = None
         self._email: str | None = None
 
@@ -37,6 +40,10 @@ class ServiceAccountProvider:
         return tuple(SERVICE_ACCOUNT_SCOPES)
 
     def credentials(self) -> service_account.Credentials:
+        with self._lock:
+            return self._fresh_credentials()
+
+    def _fresh_credentials(self) -> service_account.Credentials:
         creds = self._load()
         if not creds.valid:
             try:

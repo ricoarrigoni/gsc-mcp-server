@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-from gsc_mcp_server.errors import ApiError
+from gsc_mcp_server.errors import ApiError, NetworkError
 from gsc_mcp_server.gsc.client import GscClient, _redact_url
 
 
@@ -78,3 +78,42 @@ def test_redacted_url_hides_the_property():
         "sc-domain%3Aexample.com/searchAnalytics/query"
     )
     assert "example.com" not in _redact_url(url)
+
+
+@pytest.fixture
+def no_sleep(monkeypatch):
+    monkeypatch.setattr("gsc_mcp_server.gsc.client.time.sleep", lambda _: None)
+
+
+def test_network_errors_are_retried_then_mapped(no_sleep):
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        raise httpx.ReadTimeout("timed out", request=request)
+
+    with pytest.raises(NetworkError, match="Could not reach Google") as exc:
+        client_with(handler).list_sites()
+    assert len(calls) == 4
+    assert exc.value.reason == "network_error"
+
+
+def test_a_transient_network_error_recovers(no_sleep):
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if len(calls) == 1:
+            raise httpx.ConnectError("reset", request=request)
+        return httpx.Response(200, json={"siteEntry": []})
+
+    assert client_with(handler).list_sites() == []
+    assert len(calls) == 2
+
+
+def test_non_json_success_is_an_api_error():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text="<html>oops</html>")
+
+    with pytest.raises(ApiError, match="not JSON"):
+        client_with(handler).list_sites()
