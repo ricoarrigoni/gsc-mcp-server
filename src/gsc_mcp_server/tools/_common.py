@@ -1,0 +1,108 @@
+"""Shared pieces for every tool module.
+
+Annotations, the failure shape, the allowlist check and the one log line per
+call live here so the tool modules cannot drift apart on any of them.
+"""
+
+from __future__ import annotations
+
+import logging
+import time
+from collections.abc import Callable
+from typing import Any
+
+from mcp.types import CallToolResult, TextContent, ToolAnnotations
+
+from ..errors import GscError
+
+logger = logging.getLogger("gsc_mcp_server.tools")
+
+READ_ONLY = ToolAnnotations(
+    read_only_hint=True,
+    destructive_hint=False,
+    open_world_hint=False,
+)
+
+
+def failure(reason: str, message: str) -> dict[str, Any]:
+    """The structured failure shape: `ok` false, a stable `reason`, a fix."""
+    return {"ok": False, "reason": reason, "message": message}
+
+
+def result(text: str, structured: dict[str, Any]) -> CallToolResult:
+    """Text the model reads plus structured content it can process."""
+    return CallToolResult(
+        content=[TextContent(type="text", text=text)],
+        structured_content=structured,
+    )
+
+
+def failure_result(reason: str, message: str) -> CallToolResult:
+    return result(message, failure(reason, message))
+
+
+def not_allowed(site_url: str) -> CallToolResult:
+    return failure_result(
+        "property_not_allowed",
+        f"{site_url} is not in GSC_PROPERTY_ALLOWLIST. Add it there, or use "
+        "list_properties to see the properties this server may read.",
+    )
+
+
+def run_tool(
+    tool: str,
+    site_url: str | None,
+    body: Callable[[], tuple[CallToolResult, dict[str, Any]]],
+) -> CallToolResult:
+    """Run a tool body, map known errors to `ok: false`, log one line.
+
+    `body` returns the result plus log fields (startDate, endDate, rows).
+    Only those fields are logged: never rows, query text or tokens.
+    """
+    started = time.monotonic()
+    fields: dict[str, Any] = {}
+    outcome = "unexpected_error"
+    try:
+        out, fields = body()
+        outcome = "ok"
+        return out
+    except ValueError as exc:
+        # RequestValidationError, plus date errors from analysis/periods.py.
+        outcome = "invalid_request"
+        return failure_result("invalid_request", str(exc))
+    except GscError as exc:
+        outcome = exc.reason
+        return failure_result(exc.reason, str(exc))
+    finally:
+        log_call(
+            tool,
+            started,
+            site_url=site_url,
+            start_date=fields.get("startDate"),
+            end_date=fields.get("endDate"),
+            rows=fields.get("rows"),
+            outcome=outcome,
+        )
+
+
+def log_call(
+    tool: str,
+    started: float,
+    *,
+    site_url: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    rows: int | None = None,
+    outcome: str = "ok",
+) -> None:
+    """The one log line per tool call. Only these fields, nothing else."""
+    logger.info(
+        "tool=%s property=%s range=%s..%s rows=%s duration_ms=%d outcome=%s",
+        tool,
+        site_url or "-",
+        start_date or "-",
+        end_date or "-",
+        "-" if rows is None else rows,
+        (time.monotonic() - started) * 1000,
+        outcome,
+    )

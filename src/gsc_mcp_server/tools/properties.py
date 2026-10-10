@@ -7,7 +7,11 @@ written. Use it as the pattern for the rest.
 
 from __future__ import annotations
 
-from ..errors import empty_property_list_message
+import time
+from typing import Any
+
+from ..errors import GscError, empty_property_list_message
+from ._common import READ_ONLY, failure, log_call
 
 
 def register(server, context) -> None:
@@ -21,16 +25,18 @@ def register(server, context) -> None:
             "matches it byte for byte, so 'sc-domain:example.com' and "
             "'https://example.com/' are different properties. Read-only."
         ),
-        annotations={
-            "readOnlyHint": True,
-            "destructiveHint": False,
-            "openWorldHint": False,
-        },
+        annotations=READ_ONLY,
     )
-    def list_properties() -> dict:
-        sites = context.client.list_sites()
+    def list_properties() -> dict[str, Any]:
+        started = time.monotonic()
+        try:
+            sites = context.client.list_sites()
+        except GscError as exc:
+            log_call("list_properties", started, outcome=exc.reason)
+            return failure(exc.reason, str(exc))
         allowed = [s for s in sites if context.config.allows(s.get("siteUrl", ""))]
 
+        log_call("list_properties", started, rows=len(allowed))
         if not allowed:
             return {
                 "ok": False,
