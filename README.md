@@ -76,6 +76,9 @@ uv run gsc-mcp-server --help
 
 Then connect your MCP client: [docs/mcp-client-config.md](docs/mcp-client-config.md).
 
+Once connected, the [user guide](docs/user-guide.md) shows what to ask and how
+to read the answers.
+
 ## Set up
 
 Pick one path. You only need to read one.
@@ -97,6 +100,10 @@ gsc-mcp-server doctor   # verify it, with a named fix on any failure
 ```
 
 ## Tools
+
+You ask questions in plain language; the client picks the tools. See the
+[user guide](docs/user-guide.md) for example questions and workflows.
+
 
 | Tool | What it does |
 |---|---|
