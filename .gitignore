@@ -12,6 +12,10 @@ tokens.json
 .env.*
 !.env.example
 
+# Local MCP client config: contains absolute paths to a credential
+# on this machine. A published example lives in docs/ instead.
+.mcp.json
+
 # --- Local data that could contain real property data ---
 exports/
 *.csv
