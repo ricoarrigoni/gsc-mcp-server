@@ -80,8 +80,11 @@ def test_redaction_ignores_non_query_dimensions():
 async def test_tools_honour_redact_pii(harness, tmp_path):
     harness.queue(
         {"rows": rows("blue widgets", "jane@example.com")},
+        # compare_periods: rows for each window, then totals for each.
         {"rows": rows("blue widgets", "jane@example.com")},
         {"rows": rows("jane@example.com")},
+        {"rows": [{"clicks": 2, "impressions": 2, "ctr": 1.0}]},
+        {"rows": [{"clicks": 1, "impressions": 1, "ctr": 1.0}]},
         {"rows": rows("blue widgets", "jane@example.com")},
     )
     server = harness.server(redact_pii=True, export_dir=tmp_path)

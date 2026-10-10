@@ -124,7 +124,15 @@ def comparison_response(
     previous_rows: list[dict[str, Any]],
     limit: int,
     redact_pii: bool = False,
+    current_totals: list[dict[str, Any]] | None = None,
+    previous_totals: list[dict[str, Any]] | None = None,
 ) -> tuple[str, dict[str, Any]]:
+    """Diff two windows.
+
+    Totals always come from a no-dimension query, so they mean the same thing
+    whatever the dimension: pass its rows as current_totals/previous_totals.
+    Without them the rows themselves must be the totals (dimension null).
+    """
     dimensions = current_request.get("dimensions") or []
     fetch_limit = int(current_request.get("rowLimit", 0))
     truncated = bool(fetch_limit) and (
@@ -144,9 +152,18 @@ def comparison_response(
             "impressions": sum(int(r.get("impressions", 0)) for r in rows),
         }
 
-    cur_tot, prev_tot = totals(current_rows), totals(previous_rows)
+    cur_tot = totals(current_rows if current_totals is None else current_totals)
+    prev_tot = totals(previous_rows if previous_totals is None else previous_totals)
+    filtered = bool(current_request.get("dimensionFilterGroups"))
 
     notes = grouping_notes(dimensions)
+    if dimensions:
+        notes.append(
+            "The window totals are "
+            + ("filtered totals" if filtered else "property totals")
+            + " from a separate query without a dimension, so they include "
+            "anonymised queries and can exceed the sum of the rows."
+        )
     if dropped:
         notes.append(redaction_note(dropped))
     if truncated:
@@ -186,6 +203,7 @@ def comparison_response(
             "endDate": previous_request["endDate"],
             **prev_tot,
         },
+        "totalsScope": "filtered" if filtered else "property",
         "rowCount": len(shown),
         "totalKeys": len(diffed),
         "rows": shown,

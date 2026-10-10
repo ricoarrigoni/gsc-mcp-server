@@ -304,9 +304,18 @@ def register(server, context) -> None:
             previous = build_search_analytics_request(
                 start_date=prev_start, end_date=prev_end, **common
             )
-            current_rows = context.client.query_search_analytics(siteUrl, current)
-            previous_rows = context.client.query_search_analytics(siteUrl, previous)
+            query = context.client.query_search_analytics
+            current_rows = query(siteUrl, current)
+            previous_rows = query(siteUrl, previous)
+            current_totals = previous_totals = None
+            if dims:
+                # Window totals from a no-dimension query, so they mean the
+                # same thing whichever dimension is diffed.
+                current_totals = query(siteUrl, {**current, "dimensions": []})
+                previous_totals = query(siteUrl, {**previous, "dimensions": []})
             text, structured = comparison_response(
+                current_totals=current_totals,
+                previous_totals=previous_totals,
                 site_url=siteUrl,
                 current_request=current,
                 previous_request=previous,

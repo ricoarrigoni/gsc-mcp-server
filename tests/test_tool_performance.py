@@ -145,6 +145,8 @@ async def test_compare_periods_queries_adjacent_windows_and_diffs(harness):
     harness.queue(
         {"rows": [{"keys": ["a"], "clicks": 10, "impressions": 100, "ctr": 0.1}]},
         {"rows": [{"keys": ["a"], "clicks": 4, "impressions": 80, "ctr": 0.05}]},
+        {"rows": [{"clicks": 15, "impressions": 130, "ctr": 0.11}]},
+        {"rows": [{"clicks": 6, "impressions": 95, "ctr": 0.06}]},
     )
     server = harness.server()
     out = await harness.call(
@@ -154,13 +156,18 @@ async def test_compare_periods_queries_adjacent_windows_and_diffs(harness):
         startDate="2026-09-08",
         endDate="2026-09-14",
     )
-    current, previous = harness.bodies()
+    current, previous, current_totals, previous_totals = harness.bodies()
     assert (previous["startDate"], previous["endDate"]) == ("2026-09-01", "2026-09-07")
     assert current["rowLimit"] == previous["rowLimit"] == 1000
+    assert current_totals["dimensions"] == previous_totals["dimensions"] == []
+    assert current_totals["startDate"] == current["startDate"]
+    assert previous_totals["startDate"] == previous["startDate"]
     row = out.structured_content["rows"][0]
     assert row["delta"]["clicks"] == 6
-    assert out.structured_content["current"]["clicks"] == 10
-    assert out.structured_content["previous"]["clicks"] == 4
+    # Totals are the property totals, not the sum of the rows.
+    assert out.structured_content["current"]["clicks"] == 15
+    assert out.structured_content["previous"]["clicks"] == 6
+    assert out.structured_content["totalsScope"] == "property"
 
 
 async def test_compare_previous_year_beyond_retention_is_rejected(harness):
@@ -191,6 +198,7 @@ async def test_compare_previous_year_within_retention_uses_same_dates(harness):
         compareTo="previous_year",
         dimension=None,
     )
+    # dimension null: the rows are the totals, no extra totals queries.
     current, previous = harness.bodies()
     assert current["dimensions"] == previous["dimensions"] == []
     assert previous["startDate"] == subtract_months(start, 12).isoformat()
@@ -239,7 +247,7 @@ async def test_compare_named_range_ends_on_the_latest_final_day(harness):
     )
     server = harness.server()
     await harness.call(server, "compare_periods", siteUrl=SITE, dateRange="last_7_days")
-    _, current, previous = harness.bodies()
+    _, current, previous, *_ = harness.bodies()
     assert current["endDate"] == final.isoformat()
     assert current["dataState"] == previous["dataState"] == "final"
 
@@ -253,4 +261,6 @@ async def test_compare_explicit_dates_skip_the_freshness_lookup(harness):
         startDate="2026-09-08",
         endDate="2026-09-14",
     )
-    assert len(harness.requests) == 2
+    # Rows and totals for each window; no freshness lookup.
+    assert len(harness.requests) == 4
+    assert all(b["dimensions"] != ["date"] for b in harness.bodies())
