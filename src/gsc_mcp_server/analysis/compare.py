@@ -12,6 +12,7 @@ from typing import Any
 
 from ..constants import ANONYMISED_QUERY_NOTE, TYPES_WITHOUT_POSITION
 from .periods import previous_period, subtract_months
+from .shaping import redact_rows, redaction_note
 
 
 def comparison_window(
@@ -123,14 +124,20 @@ def comparison_response(
     current_rows: list[dict[str, Any]],
     previous_rows: list[dict[str, Any]],
     limit: int,
+    redact_pii: bool = False,
 ) -> tuple[str, dict[str, Any]]:
-    diffed = diff_rows(current_rows, previous_rows)
-    shown = diffed[:limit]
     dimensions = current_request.get("dimensions") or []
     fetch_limit = int(current_request.get("rowLimit", 0))
     truncated = bool(fetch_limit) and (
         len(current_rows) >= fetch_limit or len(previous_rows) >= fetch_limit
     )
+    dropped = 0
+    if redact_pii:
+        current_rows, cur_dropped = redact_rows(current_rows, dimensions)
+        previous_rows, prev_dropped = redact_rows(previous_rows, dimensions)
+        dropped = cur_dropped + prev_dropped
+    diffed = diff_rows(current_rows, previous_rows)
+    shown = diffed[:limit]
 
     def totals(rows: list[dict[str, Any]]) -> dict[str, int]:
         return {
@@ -141,6 +148,8 @@ def comparison_response(
     cur_tot, prev_tot = totals(current_rows), totals(previous_rows)
 
     notes = [ANONYMISED_QUERY_NOTE]
+    if dropped:
+        notes.append(redaction_note(dropped))
     if truncated:
         notes.append(
             f"One window hit the {fetch_limit}-row fetch cap, so keys outside "
@@ -189,4 +198,6 @@ def comparison_response(
         "truncated": truncated,
         "notes": notes,
     }
+    if redact_pii:
+        structured["redactedRows"] = dropped
     return text, structured

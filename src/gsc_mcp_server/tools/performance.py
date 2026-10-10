@@ -18,7 +18,7 @@ from pydantic import Field
 from ..analysis.compare import comparison_response, comparison_window
 from ..analysis.export import write_rows_csv
 from ..analysis.periods import retention_floor
-from ..analysis.shaping import performance_response
+from ..analysis.shaping import performance_response, redact_rows, redaction_note
 from ..constants import (
     EXPORT_DEFAULT_ROWS,
     EXPORT_MAX_ROWS,
@@ -78,7 +78,10 @@ def register(server, context) -> None:
     ) -> tuple[CallToolResult, dict[str, Any]]:
         rows = context.client.query_search_analytics(site_url, request)
         text, structured = performance_response(
-            site_url=site_url, request=request, rows=rows
+            site_url=site_url,
+            request=request,
+            rows=rows,
+            redact_pii=context.config.redact_pii,
         )
         return result(text, structured), _log_fields(request, len(rows))
 
@@ -246,6 +249,7 @@ def register(server, context) -> None:
                 current_rows=current_rows,
                 previous_rows=previous_rows,
                 limit=limit,
+                redact_pii=context.config.redact_pii,
             )
             return result(text, structured), {
                 "startDate": previous["startDate"],
@@ -304,12 +308,21 @@ def register(server, context) -> None:
                 f"{secrets.token_hex(3)}.csv"
             )
             path = context.config.exports_path / name
-            count = write_rows_csv(
-                path,
-                dims,
-                iter_pages(context.client, siteUrl, request, max_rows=maxRows),
-            )
-            truncated = count >= maxRows
+            fetched = dropped = 0
+
+            def pages():
+                nonlocal fetched, dropped
+                for page in iter_pages(
+                    context.client, siteUrl, request, max_rows=maxRows
+                ):
+                    fetched += len(page)
+                    if context.config.redact_pii:
+                        page, n = redact_rows(page, dims)
+                        dropped += n
+                    yield page
+
+            count = write_rows_csv(path, dims, pages())
+            truncated = fetched >= maxRows
             structured = {
                 "ok": True,
                 "siteUrl": siteUrl,
@@ -321,6 +334,8 @@ def register(server, context) -> None:
                 "searchType": searchType,
                 "truncated": truncated,
             }
+            if context.config.redact_pii:
+                structured["redactedRows"] = dropped
             text = (
                 f"Wrote {count:,} row{'' if count == 1 else 's'} to {path}\n"
                 f"{siteUrl} | {'+'.join(dims) or 'totals'} | "
@@ -330,6 +345,7 @@ def register(server, context) -> None:
                     if truncated
                     else ""
                 )
+                + (f"\n{redaction_note(dropped)}" if dropped else "")
             )
             return result(text, structured), _log_fields(request, count)
 
