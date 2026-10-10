@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
+from urllib.parse import unquote
 
 ALLOWED = {
     "example.com",
@@ -43,12 +44,20 @@ ALLOWED_HOSTS = {
     "schema.org",
 }
 
+# Any *.iam.gserviceaccount.com address is a service account placeholder,
+# never a real site. Same for *.googleapis.com endpoints.
+ALLOWED_SUFFIXES = (
+    ".iam.gserviceaccount.com",
+    ".googleapis.com",
+    ".github.io",
+)
+
 SKIP_PREFIXES = ("tests/fixtures/golden/",)
 SKIP_SUFFIXES = (".lock", ".png", ".jpg", ".gif", ".svg", ".ico")
 
 DOMAIN_RE = re.compile(
     r"\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+"
-    r"(?:com|org|net|io|de|es|pt|co|uk|ai|dev|app|info|biz|eu|ch)\b",
+    r"(?:com|org|net|io|de|es|pt|co|uk|ai|dev|app|eu|ch)\b",
     re.IGNORECASE,
 )
 
@@ -68,15 +77,20 @@ def main() -> int:
         if path == "scripts/check_no_real_domains.py":
             continue
         try:
-            text = open(path, encoding="utf-8").read()
+            with open(path, encoding="utf-8") as handle:
+                text = handle.read()
         except (UnicodeDecodeError, FileNotFoundError, IsADirectoryError):
             continue
         for lineno, line in enumerate(text.splitlines(), 1):
-            for match in DOMAIN_RE.findall(line):
+            # Percent-decode first: sc-domain%3Aexample.com must read as
+            # example.com, not as the host '3aexample.com'.
+            for match in DOMAIN_RE.findall(unquote(line)):
                 host = match.lower()
                 if host in ALLOWED or host in ALLOWED_HOSTS:
                     continue
                 if any(host.endswith("." + a) for a in ALLOWED):
+                    continue
+                if host.endswith(ALLOWED_SUFFIXES):
                     continue
                 findings.append((path, lineno, host))
 

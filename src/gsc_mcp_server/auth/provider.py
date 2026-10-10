@@ -21,7 +21,7 @@ class AuthProvider(Protocol):
         ...
 
     def mode(self) -> AuthMode:
-        """"oauth" or "service_account". Used in logs and error messages."""
+        """ "oauth" or "service_account". Used in logs and error messages."""
         ...
 
     def identity(self) -> str | None:

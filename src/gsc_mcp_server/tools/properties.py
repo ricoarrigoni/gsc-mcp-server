@@ -29,9 +29,7 @@ def register(server, context) -> None:
     )
     def list_properties() -> dict:
         sites = context.client.list_sites()
-        allowed = [
-            s for s in sites if context.config.allows(s.get("siteUrl", ""))
-        ]
+        allowed = [s for s in sites if context.config.allows(s.get("siteUrl", ""))]
 
         if not allowed:
             return {

@@ -5,8 +5,13 @@ from gsc_mcp_server.logging_setup import RedactingFilter
 
 def record(message: str) -> logging.LogRecord:
     return logging.LogRecord(
-        name="t", level=logging.INFO, pathname="", lineno=0,
-        msg=message, args=(), exc_info=None,
+        name="t",
+        level=logging.INFO,
+        pathname="",
+        lineno=0,
+        msg=message,
+        args=(),
+        exc_info=None,
     )
 
 
@@ -26,7 +31,7 @@ def test_refresh_tokens_are_redacted():
 
 
 def test_client_secret_is_redacted():
-    out = apply('client_secret=GOCSPX-abcdefghijklmno')
+    out = apply("client_secret=GOCSPX-abcdefghijklmno")
     assert "GOCSPX-abcdefghijklmno" not in out
 
 

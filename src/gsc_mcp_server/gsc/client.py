@@ -48,9 +48,7 @@ class GscClient:
 
         last: ApiError | None = None
         for attempt in range(1, MAX_ATTEMPTS + 1):
-            response = self._client.request(
-                method, url, headers=headers, json=body
-            )
+            response = self._client.request(method, url, headers=headers, json=body)
             if response.is_success:
                 return response.json() if response.content else {}
 
@@ -94,7 +92,8 @@ class GscClient:
     ) -> list[dict[str, Any]]:
         # siteUrl is matched byte for byte by Google. Never normalise it,
         # only percent-encode it for the path.
-        url = f"{WEBMASTERS_BASE}/sites/{quote(site_url, safe='')}/searchAnalytics/query"
+        site = quote(site_url, safe="")
+        url = f"{WEBMASTERS_BASE}/sites/{site}/searchAnalytics/query"
         data = self._request("POST", url, body)
         return list(data.get("rows") or [])
 

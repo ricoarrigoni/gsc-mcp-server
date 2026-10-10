@@ -112,7 +112,5 @@ def build_search_analytics_request(
     wrapped = validate_filters(filters)
     if wrapped:
         # Must be dimensionFilterGroups. A top-level "filters" key is ignored.
-        body["dimensionFilterGroups"] = [
-            {"groupType": "and", "filters": wrapped}
-        ]
+        body["dimensionFilterGroups"] = [{"groupType": "and", "filters": wrapped}]
     return body

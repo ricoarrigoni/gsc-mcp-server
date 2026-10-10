@@ -45,21 +45,18 @@ def run_doctor(cfg: Config | None = None) -> list[Check]:
         if warning:
             checks.append(Check("key file permissions", WARN, warning))
 
+    # granted_scopes() is what actually touches the stored credential, so it
+    # is the honest place to decide whether one exists at all.
     try:
+        scopes = set(provider.granted_scopes())
         identity = provider.identity()
-        checks.append(
-            Check("credential", OK, identity or "loaded (identity unknown)")
-        )
     except Exception as exc:
         checks.append(Check("credential", FAIL, str(exc)))
         return checks
 
+    checks.append(Check("credential", OK, identity or "loaded (identity unknown)"))
+
     # --- scope -------------------------------------------------------------
-    try:
-        scopes = set(provider.granted_scopes())
-    except Exception as exc:
-        checks.append(Check("scope", FAIL, str(exc)))
-        return checks
 
     if SCOPE_WRITE in scopes:
         checks.append(
@@ -116,9 +113,7 @@ def run_doctor(cfg: Config | None = None) -> list[Check]:
     # --- allowlist ---------------------------------------------------------
     if cfg.property_allowlist:
         blocked = [
-            s.get("siteUrl")
-            for s in sites
-            if not cfg.allows(s.get("siteUrl", ""))
+            s.get("siteUrl") for s in sites if not cfg.allows(s.get("siteUrl", ""))
         ]
         checks.append(
             Check(

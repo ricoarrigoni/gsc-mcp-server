@@ -56,14 +56,14 @@ def build_server(cfg: Config):
 
     The import is local so `--help` and `doctor` do not pay for it.
     """
-    from mcp.server import MCPServer  # noqa: PLC0415
+    from mcp.server import MCPServer
 
     context = ServerContext(cfg)
     context.log_startup()
 
     server = MCPServer(name="gsc-mcp-server")
 
-    from .tools import register_all  # noqa: PLC0415
+    from .tools import register_all
 
     register_all(server, context)
     return server

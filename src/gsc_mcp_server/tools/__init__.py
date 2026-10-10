@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def register_all(server, context) -> None:
-    from . import properties  # noqa: PLC0415
+    from . import properties
 
     modules = [properties]
     # TODO: add performance, urls, sitemaps as they are implemented.
