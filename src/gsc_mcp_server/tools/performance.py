@@ -129,7 +129,7 @@ def register(server, context) -> None:
         return latest + timedelta(days=DATA_LAG_DAYS)
 
     def run_query(
-        site_url: str, request: dict[str, Any]
+        site_url: str, request: dict[str, Any], top_n: int | None = None
     ) -> tuple[CallToolResult, dict[str, Any]]:
         rows = context.client.query_search_analytics(site_url, request)
         text, structured = performance_response(
@@ -137,6 +137,7 @@ def register(server, context) -> None:
             request=request,
             rows=rows,
             redact_pii=context.config.redact_pii,
+            top_n=top_n,
         )
         return result(text, structured), _log_fields(request, len(rows))
 
@@ -193,9 +194,9 @@ def register(server, context) -> None:
             name=tool,
             title=title,
             description=(
-                f"Top {noun} by clicks, default the last 28 days and 50 rows. "
-                "A shortcut for query_performance; use that for other "
-                "groupings. Read-only."
+                f"Top {noun} ranked by clicks, then impressions, default the "
+                "last 28 days and 50 rows. A shortcut for query_performance; "
+                "use that for other groupings. Read-only."
             ),
             annotations=READ_ONLY,
         )
@@ -218,10 +219,12 @@ def register(server, context) -> None:
                     start_date=startDate,
                     end_date=endDate,
                     filters=filter_dicts(filters),
-                    row_limit=rowLimit,
+                    # Fetch the full inline page so the re-rank by
+                    # impressions sees the rows Google sorted past rowLimit.
+                    row_limit=MAX_ROW_LIMIT,
                     search_type=searchType,
                 )
-                return run_query(siteUrl, request)
+                return run_query(siteUrl, request, top_n=rowLimit)
 
             return run_tool(tool, siteUrl, body)
 

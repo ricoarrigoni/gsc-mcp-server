@@ -106,8 +106,15 @@ def performance_response(
     request: dict[str, Any],
     rows: list[dict[str, Any]],
     redact_pii: bool = False,
+    top_n: int | None = None,
 ) -> tuple[str, dict[str, Any]]:
-    """Return (text, structured_content) for a search analytics result."""
+    """Return (text, structured_content) for a search analytics result.
+
+    With `top_n`, rows are re-ranked by clicks then impressions and cut to
+    top_n. Google breaks click ties alphabetically, which on a low-traffic
+    property buries the rows with the most impressions. A re-ranked result
+    cannot be paginated with startRow, so it carries no nextStartRow.
+    """
     dimensions = request.get("dimensions") or []
     requested_limit = int(request.get("rowLimit", 0))
     start_row = int(request.get("startRow", 0))
@@ -117,13 +124,25 @@ def performance_response(
     dropped = 0
     if redact_pii:
         rows, dropped = redact_rows(rows, dimensions)
+    if top_n is not None:
+        rows = sorted(
+            rows,
+            key=lambda r: (-int(r.get("clicks", 0)), -int(r.get("impressions", 0))),
+        )
+        has_more = has_more or len(rows) > top_n
+        rows = rows[:top_n]
     compact = [compact_row(r) for r in rows]
 
+    if not has_more:
+        more = ""
+    elif top_n is not None:
+        more = " (more available: use query_performance or export_query)"
+    else:
+        more = " (more available, paginate with startRow)"
     header = (
         f"{site_url} | {'+'.join(dimensions) or 'totals'} | "
         f"{request['startDate']} to {request['endDate']} | "
-        f"{len(compact)} row{'' if len(compact) == 1 else 's'}"
-        + (" (more available, paginate with startRow)" if has_more else "")
+        f"{len(compact)} row{'' if len(compact) == 1 else 's'}{more}"
     )
 
     notes = [ANONYMISED_QUERY_NOTE]
@@ -156,6 +175,6 @@ def performance_response(
     }
     if redact_pii:
         structured["redactedRows"] = dropped
-    if has_more:
+    if has_more and top_n is None:
         structured["nextStartRow"] = start_row + fetched
     return text, structured

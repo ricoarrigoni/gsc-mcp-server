@@ -119,7 +119,26 @@ async def test_top_queries_and_top_pages_group_and_default_to_fifty(harness):
     queries, pages = harness.bodies()
     assert queries["dimensions"] == ["query"]
     assert pages["dimensions"] == ["page"]
-    assert queries["rowLimit"] == pages["rowLimit"] == 50
+    # The full inline page is fetched, then cut to the default of 50.
+    assert queries["rowLimit"] == pages["rowLimit"] == 1000
+
+
+async def test_top_queries_breaks_click_ties_by_impressions(harness):
+    harness.queue(
+        {
+            "rows": [
+                {"keys": ["a"], "clicks": 0, "impressions": 3, "ctr": 0},
+                {"keys": ["b"], "clicks": 0, "impressions": 90, "ctr": 0},
+                {"keys": ["c"], "clicks": 2, "impressions": 5, "ctr": 0.4},
+            ]
+        }
+    )
+    server = harness.server()
+    out = await harness.call(server, "top_queries", siteUrl=SITE, rowLimit=2)
+    s = out.structured_content
+    assert [r["keys"] for r in s["rows"]] == [["c"], ["b"]]
+    assert s["hasMore"] is True
+    assert "nextStartRow" not in s
 
 
 async def test_compare_periods_queries_adjacent_windows_and_diffs(harness):
