@@ -47,3 +47,9 @@ def configure(level: int = logging.INFO) -> None:
     root.handlers.clear()
     root.addHandler(handler)
     root.setLevel(level)
+
+    # httpx logs every request URL at INFO. A searchAnalytics URL contains the
+    # property, so that is property data in the log. Our own log lines redact
+    # it; httpx's do not. Silence them below WARNING.
+    for noisy in ("httpx", "httpcore", "urllib3", "google_auth_httplib2"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
