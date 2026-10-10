@@ -33,7 +33,7 @@ tab. Replace both paths with your own.
 ```
 
 No clone? Use `"command": "uvx"` with
-`"args": ["--from", "git+https://github.com/OWNER/gsc-mcp-server", "gsc-mcp-server"]`
+`"args": ["--from", "git+https://github.com/ricoarrigoni/gsc-mcp-server", "gsc-mcp-server"]`
 instead.
 
 ## Claude Code, terminal CLI

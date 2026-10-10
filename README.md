@@ -62,13 +62,13 @@ Requires [uv](https://docs.astral.sh/uv/). `brew install uv`, or `curl -LsSf htt
 Run it straight from GitHub, no clone needed:
 
 ```sh
-uvx --from git+https://github.com/OWNER/gsc-mcp-server gsc-mcp-server --help
+uvx --from git+https://github.com/ricoarrigoni/gsc-mcp-server gsc-mcp-server --help
 ```
 
 Or from source:
 
 ```sh
-git clone https://github.com/OWNER/gsc-mcp-server
+git clone https://github.com/ricoarrigoni/gsc-mcp-server
 cd gsc-mcp-server
 uv sync
 uv run gsc-mcp-server --help
