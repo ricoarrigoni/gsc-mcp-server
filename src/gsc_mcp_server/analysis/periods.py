@@ -77,10 +77,13 @@ def resolve_range(
 
     name = date_range or "last_28_days"
     end = today - timedelta(days=DATA_LAG_DAYS)
+    # Both ends are inclusive in Search Console, so last_28_days is end and
+    # the 27 days before it, and last_3_months starts the day after the date
+    # three months back.
     if name in _RANGE_DAYS:
-        start = end - timedelta(days=_RANGE_DAYS[name])
+        start = end - timedelta(days=_RANGE_DAYS[name] - 1)
     elif name in _RANGE_MONTHS:
-        start = subtract_months(end, _RANGE_MONTHS[name])
+        start = subtract_months(end, _RANGE_MONTHS[name]) + timedelta(days=1)
     else:
         raise ValueError(f"Unknown dateRange {name!r}.")
 
