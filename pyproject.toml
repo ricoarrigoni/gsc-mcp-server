@@ -39,6 +39,7 @@ gsc-mcp-server = "gsc_mcp_server.cli:main"
 [project.urls]
 Homepage = "https://github.com/ricoarrigoni/gsc-mcp-server"
 Issues = "https://github.com/ricoarrigoni/gsc-mcp-server/issues"
+Author = "https://ricardoarrigoni.com"
 
 [build-system]
 requires = ["hatchling"]

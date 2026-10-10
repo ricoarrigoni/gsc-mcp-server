@@ -160,6 +160,11 @@ use `example.com` only.
 Security reports: see [SECURITY.md](SECURITY.md). Please do not open a public
 issue for a vulnerability.
 
+## Author
+
+Built and maintained by Ricardo Arrigoni,
+[ricardoarrigoni.com](https://ricardoarrigoni.com). Get in touch there.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).

@@ -42,6 +42,8 @@ ALLOWED_HOSTS = {
     "claude.ai",
     "pre-commit.com",
     "schema.org",
+    # The author's own site, linked from README and pyproject on purpose.
+    "ricardoarrigoni.com",
 }
 
 # Any *.iam.gserviceaccount.com address is a service account placeholder,
