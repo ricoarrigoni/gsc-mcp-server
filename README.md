@@ -55,6 +55,8 @@ or long digit string. A blunt filter, not a guarantee.
 
 ## Install
 
+Requires [uv](https://docs.astral.sh/uv/). `brew install uv`, or `curl -LsSf https://astral.sh/uv/install.sh | sh`.
+
 ```sh
 uvx gsc-mcp-server --help
 ```

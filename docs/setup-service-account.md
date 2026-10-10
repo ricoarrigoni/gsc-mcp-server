@@ -12,6 +12,19 @@ in the Search Console UI stays invisible to the server until you do that.
 > revoke the key. Use a dedicated Google Cloud project, keep the file outside
 > this repository, and `chmod 600` it.
 
+## 0. Install uv
+
+Every command below uses `uv`. If you do not have it:
+
+```sh
+brew install uv            # macOS, or:
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source $HOME/.local/bin/env
+```
+
+Check with `uv --version`. The first `uv sync` downloads a Python 3.12
+toolchain and the dependencies, which takes a minute.
+
 ## 1. Create a project
 
 <https://console.cloud.google.com/projectcreate>
