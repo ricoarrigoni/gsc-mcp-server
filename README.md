@@ -59,11 +59,15 @@ A blunt filter, not a guarantee.
 
 Requires [uv](https://docs.astral.sh/uv/). `brew install uv`, or `curl -LsSf https://astral.sh/uv/install.sh | sh`.
 
-Run it straight from GitHub, no clone needed:
+Run it from PyPI, no clone needed:
 
 ```sh
-uvx --from git+https://github.com/ricoarrigoni/gsc-mcp-server gsc-mcp-server --help
+uvx gsc-mcp-server --help
 ```
+
+`uvx` fetches the latest release and caches it. Pin a version with
+`uvx gsc-mcp-server@0.1.0`, or install it permanently with
+`uv tool install gsc-mcp-server` (or `pip install gsc-mcp-server`).
 
 Or from source:
 
@@ -74,9 +78,9 @@ uv sync
 uv run gsc-mcp-server --help
 ```
 
-Then connect your MCP client: [docs/mcp-client-config.md](docs/mcp-client-config.md).
+Then connect your MCP client: [docs/mcp-client-config.md](https://github.com/ricoarrigoni/gsc-mcp-server/blob/main/docs/mcp-client-config.md).
 
-Once connected, the [user guide](docs/user-guide.md) shows what to ask and how
+Once connected, the [user guide](https://github.com/ricoarrigoni/gsc-mcp-server/blob/main/docs/user-guide.md) shows what to ask and how
 to read the answers.
 
 ## Set up
@@ -84,10 +88,10 @@ to read the answers.
 Pick one path. You only need to read one.
 
 **Do the properties you read change over time, or do you manage many of them?**
-→ [OAuth setup](docs/setup-oauth.md). Access follows your Google account.
+→ [OAuth setup](https://github.com/ricoarrigoni/gsc-mcp-server/blob/main/docs/setup-oauth.md). Access follows your Google account.
 
 **Do you read a fixed set of properties and want it to never break?**
-→ [Service account setup](docs/setup-service-account.md). No consent screen,
+→ [Service account setup](https://github.com/ricoarrigoni/gsc-mcp-server/blob/main/docs/setup-service-account.md). No consent screen,
 no token expiry, one manual grant per property.
 
 If you are not sure, use OAuth.
@@ -102,7 +106,7 @@ gsc-mcp-server doctor   # verify it, with a named fix on any failure
 ## Tools
 
 You ask questions in plain language; the client picks the tools. See the
-[user guide](docs/user-guide.md) for example questions and workflows.
+[user guide](https://github.com/ricoarrigoni/gsc-mcp-server/blob/main/docs/user-guide.md) for example questions and workflows.
 
 
 | Tool | What it does |
@@ -132,7 +136,7 @@ than a failed batch.
 ## Configuration
 
 All settings are environment variables. Put them in the `env` block of your
-MCP client config (see [docs/mcp-client-config.md](docs/mcp-client-config.md)),
+MCP client config (see [docs/mcp-client-config.md](https://github.com/ricoarrigoni/gsc-mcp-server/blob/main/docs/mcp-client-config.md)),
 or export them in your shell for `auth` and `doctor`. No `.env` file is read.
 
 | Variable | Default | Purpose |
@@ -149,7 +153,7 @@ Keep credential files outside any git repository.
 
 ## Troubleshooting
 
-[docs/troubleshooting.md](docs/troubleshooting.md). Start with
+[docs/troubleshooting.md](https://github.com/ricoarrigoni/gsc-mcp-server/blob/main/docs/troubleshooting.md). Start with
 `gsc-mcp-server doctor`.
 
 ## Contributing
@@ -164,7 +168,7 @@ Install the hooks once: `uv run pre-commit install`. The hooks block credentials
 and any real domain name from entering the repository. Fixtures and examples
 use `example.com` only.
 
-Security reports: see [SECURITY.md](SECURITY.md). Please do not open a public
+Security reports: see [SECURITY.md](https://github.com/ricoarrigoni/gsc-mcp-server/blob/main/SECURITY.md). Please do not open a public
 issue for a vulnerability.
 
 ## Author
@@ -174,4 +178,4 @@ Built and maintained by Ricardo Arrigoni,
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](https://github.com/ricoarrigoni/gsc-mcp-server/blob/main/LICENSE).

@@ -10,19 +10,14 @@ not pass through a client either, and the client gives you a worse error.
 ## Claude Code, desktop app
 
 Put a `.mcp.json` in the project folder, then open that folder in the Code
-tab. Replace both paths with your own.
+tab. Replace the credential path with your own.
 
 ```json
 {
   "mcpServers": {
     "gsc": {
-      "command": "uv",
-      "args": [
-        "run",
-        "--directory",
-        "/absolute/path/to/gsc-mcp-server",
-        "gsc-mcp-server"
-      ],
+      "command": "uvx",
+      "args": ["gsc-mcp-server"],
       "env": {
         "GSC_AUTH_MODE": "service_account",
         "GSC_SERVICE_ACCOUNT_KEY": "/absolute/path/to/gsc-reader-key.json"
@@ -32,9 +27,12 @@ tab. Replace both paths with your own.
 }
 ```
 
-No clone? Use `"command": "uvx"` with
-`"args": ["--from", "git+https://github.com/ricoarrigoni/gsc-mcp-server", "gsc-mcp-server"]`
-instead.
+`uvx` runs the latest release from PyPI. To pin one, use
+`"args": ["gsc-mcp-server@0.1.0"]`. Some clients do not inherit your shell's
+`PATH`; if the client cannot find `uvx`, give its absolute path (`which uvx`).
+
+Running from a clone instead? Use `"command": "uv"` with
+`"args": ["run", "--directory", "/absolute/path/to/gsc-mcp-server", "gsc-mcp-server"]`.
 
 ## Claude Code, terminal CLI
 

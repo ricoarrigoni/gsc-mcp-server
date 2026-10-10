@@ -1,17 +1,22 @@
 [project]
 name = "gsc-mcp-server"
 version = "0.1.0"
-description = "Read-only Model Context Protocol server for Google Search Console."
+description = "Read-only MCP server for Google Search Console: search performance, URL Inspection, sitemaps and CSV exports."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { file = "LICENSE" }
 authors = [{ name = "Ricardo Arrigoni" }]
-keywords = ["mcp", "google-search-console", "seo", "search-analytics"]
+keywords = ["mcp", "mcp-server", "model-context-protocol", "google-search-console", "seo", "search-analytics", "claude"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
   "License :: OSI Approved :: MIT License",
+  "Environment :: Console",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
 ]
 dependencies = [
@@ -38,6 +43,8 @@ gsc-mcp-server = "gsc_mcp_server.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/ricoarrigoni/gsc-mcp-server"
+Documentation = "https://github.com/ricoarrigoni/gsc-mcp-server/blob/main/docs/user-guide.md"
+Changelog = "https://github.com/ricoarrigoni/gsc-mcp-server/releases"
 Issues = "https://github.com/ricoarrigoni/gsc-mcp-server/issues"
 Author = "https://ricardoarrigoni.com"
 
@@ -47,6 +54,21 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/gsc_mcp_server"]
+
+# Only what is needed to build, test and read the package. Keeps local
+# files (editor settings, credentials) out even when built from a working
+# copy rather than a clean checkout.
+[tool.hatch.build.targets.sdist]
+include = [
+  "src/",
+  "tests/",
+  "scripts/",
+  "docs/",
+  "README.md",
+  "LICENSE",
+  "SECURITY.md",
+  "pyproject.toml",
+]
 
 [tool.ruff]
 line-length = 88
