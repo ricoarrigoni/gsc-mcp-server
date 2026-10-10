@@ -94,3 +94,24 @@ def test_caveats_match_the_grouping():
     assert _notes(["date"]) == ""
     assert _notes(["country", "device"]) == ""
     assert _notes([]) == "Property totals include anonymised queries."
+
+
+def test_cut_among_zero_click_rows_says_the_order_is_alphabetical():
+    request = {
+        "startDate": "2026-09-01",
+        "endDate": "2026-09-28",
+        "dimensions": ["query"],
+        "rowLimit": 2,
+        "type": "web",
+    }
+    rows = [{"keys": [k], "clicks": 0, "impressions": 1, "ctr": 0.0} for k in "ab"]
+    _, s = performance_response(
+        site_url="sc-domain:example.com", request=request, rows=rows
+    )
+    assert any("alphabetical" in n for n in s["notes"])
+
+    rows[-1]["clicks"] = 1
+    _, s = performance_response(
+        site_url="sc-domain:example.com", request=request, rows=rows
+    )
+    assert not any("alphabetical" in n for n in s["notes"])

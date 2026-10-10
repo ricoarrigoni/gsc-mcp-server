@@ -171,6 +171,14 @@ def performance_response(
     )
 
     notes = grouping_notes(dimensions)
+    if has_more and top_n is None and compact and compact[-1]["clicks"] == 0:
+        # The cut fell among zero-click rows, which Google orders
+        # alphabetically, so the rows beyond it may have more impressions.
+        notes.append(
+            "Rows are in Google's order: clicks, then alphabetical. The cut "
+            "falls among zero-click rows, so rows beyond it may have more "
+            "impressions; top_queries and top_pages rank by impressions."
+        )
     if dropped:
         notes.append(redaction_note(dropped))
     notes += position_note(request.get("type"))

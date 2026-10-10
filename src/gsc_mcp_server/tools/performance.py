@@ -149,8 +149,12 @@ def register(server, context) -> None:
             "position) grouped by any dimensions, with filters. Pass "
             "dimensions=[] for property totals, which are the only figures "
             "that include anonymised queries. searchAppearance must be the "
-            "only dimension when used. Returns a table plus structured rows; "
-            "when hasMore is true, call again with startRow=nextStartRow. "
+            "only dimension when used. Rows come in Google's order: clicks "
+            "descending, ties alphabetical, so a small rowLimit on a "
+            "low-traffic property returns alphabetical zero-click rows; use "
+            "top_queries or top_pages for a shortlist ranked by impressions. "
+            "Returns a table plus structured rows; when hasMore is true, call "
+            "again with startRow=nextStartRow. "
             "Read-only."
         ),
         annotations=READ_ONLY,
