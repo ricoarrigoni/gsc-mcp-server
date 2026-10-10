@@ -28,9 +28,10 @@ class RequestValidationError(ValueError):
 
 
 def validate_dimensions(dimensions: list[str] | None) -> list[str]:
-    dims = list(dimensions or ["query"])
-    if not dims:
-        raise RequestValidationError("dimensions must not be empty.")
+    # None means the default grouping. An explicit empty list means property
+    # totals, which is also the only way to get figures that include
+    # anonymised queries.
+    dims = ["query"] if dimensions is None else list(dimensions)
     unknown = [d for d in dims if d not in DIMENSIONS]
     if unknown:
         raise RequestValidationError(

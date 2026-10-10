@@ -9,10 +9,12 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import Annotated, Any
 
 from mcp.types import CallToolResult, TextContent, ToolAnnotations
+from pydantic import BaseModel, Field
 
+from ..constants import DateRange, Dimension, FilterOperator, SearchType
 from ..errors import GscError
 
 logger = logging.getLogger("gsc_mcp_server.tools")
@@ -22,6 +24,70 @@ READ_ONLY = ToolAnnotations(
     destructive_hint=False,
     open_world_hint=False,
 )
+
+
+# --- Parameter types shared by the Search Analytics tools ------------------
+# Parameter names are camelCase to match the API fields and the descriptions
+# the model reads; the SDK does not honour pydantic aliases on tool args.
+
+SiteUrl = Annotated[
+    str,
+    Field(
+        description=(
+            "Property exactly as list_properties returns it, e.g. "
+            "'sc-domain:example.com' or 'https://example.com/'. Passed "
+            "verbatim: Search Console matches it byte for byte."
+        )
+    ),
+]
+DateRangeArg = Annotated[
+    DateRange | None,
+    Field(
+        description=(
+            "Named window ending 3 days ago (data lag). Default last_28_days. "
+            "Ignored when startDate and endDate are both given."
+        )
+    ),
+]
+StartDate = Annotated[
+    str | None,
+    Field(description="YYYY-MM-DD. Give both startDate and endDate, or neither."),
+]
+EndDate = Annotated[
+    str | None,
+    Field(description="YYYY-MM-DD. Give both startDate and endDate, or neither."),
+]
+SearchTypeArg = Annotated[
+    SearchType,
+    Field(
+        description=(
+            "Search surface. Position is not reported for discover and googleNews."
+        )
+    ),
+]
+
+
+class Filter(BaseModel):
+    """One dimension filter. Several are combined with AND."""
+
+    dimension: Dimension
+    operator: FilterOperator = "equals"
+    expression: str = Field(min_length=1)
+
+
+FiltersArg = Annotated[
+    list[Filter] | None,
+    Field(
+        description=(
+            "Filters, combined with AND. country takes lowercase ISO 3166-1 "
+            "alpha-3 (e.g. 'usa'); device takes DESKTOP, MOBILE or TABLET."
+        )
+    ),
+]
+
+
+def filter_dicts(filters: list[Filter] | None) -> list[dict[str, Any]]:
+    return [f.model_dump() for f in filters or []]
 
 
 def failure(reason: str, message: str) -> dict[str, Any]:

@@ -60,13 +60,13 @@ def performance_response(
 ) -> tuple[str, dict[str, Any]]:
     """Return (text, structured_content) for a search analytics result."""
     compact = [compact_row(r) for r in rows]
-    dimensions = request.get("dimensions") or ["query"]
+    dimensions = request.get("dimensions") or []
     requested_limit = int(request.get("rowLimit", 0))
     start_row = int(request.get("startRow", 0))
     has_more = bool(requested_limit) and len(compact) >= requested_limit
 
     header = (
-        f"{site_url} | {'+'.join(dimensions)} | "
+        f"{site_url} | {'+'.join(dimensions) or 'totals'} | "
         f"{request['startDate']} to {request['endDate']} | "
         f"{len(compact)} row{'' if len(compact) == 1 else 's'}"
         + (" (more available, paginate with startRow)" if has_more else "")

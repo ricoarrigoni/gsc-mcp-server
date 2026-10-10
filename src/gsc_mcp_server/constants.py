@@ -51,7 +51,16 @@ DATE_RANGES: Final = (
 )
 
 Dimension = Literal["query", "page", "country", "device", "date", "searchAppearance"]
+FilterOperator = Literal[
+    "equals",
+    "notEquals",
+    "contains",
+    "notContains",
+    "includingRegex",
+    "excludingRegex",
+]
 SearchType = Literal["web", "image", "video", "news", "googleNews", "discover"]
+DataState = Literal["final", "all"]
 DateRange = Literal[
     "last_7_days",
     "last_28_days",
