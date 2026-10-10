@@ -1,19 +1,9 @@
 """MCP server assembly.
 
-TODO for Claude Code, in this order:
-
-  1. Replace the placeholder registration below with the nine tools from the
-     spec (section 7), each in its own module under tools/:
-       list_properties, get_data_freshness, query_performance, top_queries,
-       top_pages, compare_periods, inspect_url, list_sitemaps, export_query
-  2. Every tool returns the two-part contract from analysis/shaping.py:
-     a text table plus structured content with hasMore / nextStartRow.
-  3. Set MCP annotations on each tool: readOnlyHint true, destructiveHint
-     false, openWorldHint false.
-  4. Enforce cfg.allows(site_url) before any call that names a property.
-
-Nothing here should import googleapiclient or talk to Google directly. Go
-through gsc/client.py.
+Builds the context every tool shares (config, auth, the read-only scope
+assertion, the HTTP client) once at startup, then registers the tool
+modules from tools/. Nothing here imports googleapiclient or talks to
+Google directly; everything goes through gsc/client.py.
 """
 
 from __future__ import annotations

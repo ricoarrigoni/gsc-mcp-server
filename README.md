@@ -50,15 +50,19 @@ because people search for their own names, emails and phone numbers. If you
 query a property you do not own, the owner's data processing agreement decides
 whether that is allowed, not this README.
 
-`GSC_REDACT_PII=true` drops rows whose query looks like an email, phone number
-or long digit string. A blunt filter, not a guarantee.
+`GSC_REDACT_PII=true` drops rows whose query contains an email address or a
+run of 9 or more digits (phone, account and card numbers). It applies to every
+tool, including CSV exports, and each response says how many rows it dropped.
+A blunt filter, not a guarantee.
 
 ## Install
 
 Requires [uv](https://docs.astral.sh/uv/). `brew install uv`, or `curl -LsSf https://astral.sh/uv/install.sh | sh`.
 
+Run it straight from GitHub, no clone needed:
+
 ```sh
-uvx gsc-mcp-server --help
+uvx --from git+https://github.com/OWNER/gsc-mcp-server gsc-mcp-server --help
 ```
 
 Or from source:
@@ -66,8 +70,11 @@ Or from source:
 ```sh
 git clone https://github.com/OWNER/gsc-mcp-server
 cd gsc-mcp-server
-uv sync --extra dev
+uv sync
+uv run gsc-mcp-server --help
 ```
+
+Then connect your MCP client: [docs/mcp-client-config.md](docs/mcp-client-config.md).
 
 ## Set up
 
@@ -94,19 +101,44 @@ gsc-mcp-server doctor   # verify it, with a named fix on any failure
 | Tool | What it does |
 |---|---|
 | `list_properties` | Properties this server can read, with permission level |
-| `get_data_freshness` | The latest date with complete data |
-| `query_performance` | Full Search Analytics query, typed and validated |
+| `get_data_freshness` | The latest date with final data, and with provisional data |
+| `query_performance` | Full Search Analytics query, typed and validated. `dimensions: []` gives property totals |
 | `top_queries` | Opinionated wrapper, last 28 days, top 50 |
 | `top_pages` | Same, by page |
-| `compare_periods` | Two windows diffed server-side, deltas not raw sets |
+| `compare_periods` | Two windows diffed server-side on final data, deltas not raw sets. Previous period or previous year |
 | `inspect_url` | URL Inspection for 1 to 10 URLs |
 | `list_sitemaps` | Sitemaps with error and warning counts |
-| `export_query` | Large pulls written to CSV, returns a path |
+| `export_query` | Large pulls (up to 500,000 rows) written to CSV, returns the path, never the rows |
 
 Row counts are capped at 1,000 per call on purpose, below the API maximum of
 25,000, so returned counts stay honest and the model's context survives.
 Responses carry `hasMore` and `nextStartRow` for pagination. Larger pulls go
 through `export_query`.
+
+Every tool returns a readable table plus structured content. A failure comes
+back as `ok: false` with a stable `reason` and a sentence naming the fix.
+
+URL Inspection is capped by Google at 2,000 calls per property per day. The
+server counts locally and refuses at 1,900, so you get a clear message rather
+than a failed batch.
+
+## Configuration
+
+All settings are environment variables. Put them in the `env` block of your
+MCP client config (see [docs/mcp-client-config.md](docs/mcp-client-config.md)),
+or export them in your shell for `auth` and `doctor`. No `.env` file is read.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `GSC_AUTH_MODE` | inferred | `oauth` or `service_account`. Inferred from which credential path is set |
+| `GSC_OAUTH_CLIENT_SECRET` | | OAuth client JSON from Google Cloud Console |
+| `GSC_SERVICE_ACCOUNT_KEY` | | Service account JSON key |
+| `GSC_PROPERTY_ALLOWLIST` | all | Comma-separated `siteUrl`s. Every other property is refused |
+| `GSC_REDACT_PII` | `false` | Drop rows whose query looks like personal data |
+| `GSC_STATE_DIR` | `~/.gsc-mcp` | Token cache and the URL Inspection counter |
+| `GSC_EXPORT_DIR` | `~/.gsc-mcp/exports` | Where `export_query` writes CSV files |
+
+Keep credential files outside any git repository.
 
 ## Troubleshooting
 
@@ -117,7 +149,11 @@ through `export_query`.
 
 Pull requests welcome. Maintained as time allows.
 
-Before you commit: `uv run pre-commit install`. The hooks block credentials
+Set up with `uv sync --extra dev`. Before every commit, run `uv run pytest -q`,
+`uv run ruff check .`, `uv run ruff format --check .` and
+`uv run python scripts/check_no_real_domains.py`; CI runs the same.
+
+Install the hooks once: `uv run pre-commit install`. The hooks block credentials
 and any real domain name from entering the repository. Fixtures and examples
 use `example.com` only.
 

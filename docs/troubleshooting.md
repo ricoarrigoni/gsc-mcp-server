@@ -63,6 +63,24 @@ Expected. The API and the UI are both right.
   position for the same period.
 - The last 2 to 3 days are incomplete. `dataState: "final"` excludes them.
 
+## `reason: quota_guard` from `inspect_url`
+
+The server refuses URL Inspection locally at 1,900 calls per property per day,
+just under Google's limit of 2,000. The count resets at midnight Pacific time,
+matching Google. It is stored in `GSC_STATE_DIR`.
+
+## `reason: io_error` from `export_query`
+
+The CSV could not be written. Point `GSC_EXPORT_DIR` at a directory the MCP
+client's user can write to, with free space. A failed export leaves no partial
+file behind.
+
+## `compare_periods` ends earlier than I expected
+
+It compares final data only, so a named range such as `last_28_days` ends on
+the latest final day reported by `get_data_freshness`, not on today minus a
+fixed lag. Partial recent days would otherwise read as a drop.
+
 ## `position` is missing from rows
 
 Google does not report position for the `discover` and `googleNews` search

@@ -31,31 +31,27 @@ refer to it.
 | `list_properties` tool | `tools/properties.py` | Done, the pattern to copy |
 | Guardrails, CI, docs | various | Done |
 
-## What is left
+## What was left, now done
 
-1. **Verify the MCP SDK surface.** `server.py` assumes
-   `from mcp.server import MCPServer` and a `@server.tool(...)` decorator,
-   per the v2 SDK notes. Confirm against the installed version before
-   building on it; v1 used `FastMCP` from `mcp.server.fastmcp`.
+1. **MCP SDK surface verified** against `mcp` 2.3.0. `MCPServer` and
+   `@server.tool(...)` are as assumed. A bare `-> dict` return produces no
+   structured content, so tools return `dict[str, Any]` or a
+   `CallToolResult` (text table plus `structured_content`). Tool arguments
+   are camelCase because the SDK does not honour pydantic aliases.
+2. **All nine tools**: `properties.py`, `performance.py`
+   (`get_data_freshness`, `query_performance`, `top_queries`, `top_pages`,
+   `compare_periods`, `export_query`), `urls.py` (`inspect_url`),
+   `sitemaps.py` (`list_sitemaps`). Shared pieces in `tools/_common.py`.
+3. **Pagination** in `gsc/pagination.py`, used by `export_query` only.
+4. **`export_query`** writes an owner-only CSV to `GSC_EXPORT_DIR`.
+5. **URL Inspection quota guard** in `gsc/quota.py`, persisted in
+   `state_dir`, Pacific-time day.
+6. **PII redaction** in `analysis/shaping.py`, applied by every tool.
+7. **`get_data_freshness`** in `gsc/freshness.py`; `compare_periods`
+   anchors named ranges on it and compares final data only.
 
-2. **The remaining eight tools**, in `tools/`, grouped as
-   `performance.py`, `urls.py`, `sitemaps.py`. Follow
-   `tools/properties.py`: read-only annotations, `ok` plus `reason` on
-   failure, `context.config.allows(site_url)` before any property call.
-
-3. **Pagination helper** in `gsc/pagination.py`: loop `startRow` for
-   `export_query` only. Inline tools stay at one page.
-
-4. **`export_query`**: write CSV to disk, return the path, never the rows.
-
-5. **URL Inspection quota guard**: a local daily counter, refuse at
-   `URL_INSPECTION_SOFT_CAP`. Persist the count in `cfg.state_dir`.
-
-6. **PII redaction filter**: honour `cfg.redact_pii` in the shaping layer.
-
-7. **`get_data_freshness`**: query the last 10 days grouped by `date` with
-   `dataState: "final"`, return the maximum. Tools that do date maths should
-   call it rather than assuming the lag.
+Still needs a live run against a real property: both auth modes, and one
+call of each tool.
 
 ## Rules that are not negotiable
 

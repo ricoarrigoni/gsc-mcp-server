@@ -32,8 +32,9 @@ tab. Replace both paths with your own.
 }
 ```
 
-Installed from PyPI instead of a clone? Drop the `--directory` argument and
-use `"command": "uvx"`, `"args": ["gsc-mcp-server"]`.
+No clone? Use `"command": "uvx"` with
+`"args": ["--from", "git+https://github.com/OWNER/gsc-mcp-server", "gsc-mcp-server"]`
+instead.
 
 ## Claude Code, terminal CLI
 
