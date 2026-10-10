@@ -20,3 +20,9 @@ id = "google-refresh-token"
 description = "Google OAuth refresh token"
 regex = '''"refresh_token"\s*:\s*"1//[A-Za-z0-9_\-]{20,}"'''
 tags = ["google", "oauth"]
+
+# Deliberately fake values in tests that prove log redaction works. Listed
+# exactly, so a real token anywhere, including those files, is still caught.
+[allowlist]
+description = "Fake tokens in redaction tests"
+regexes = ['''1//0gLongLookingTokenValue''']

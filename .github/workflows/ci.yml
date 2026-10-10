@@ -41,7 +41,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      # The CLI over all history, not gitleaks-action: the action scans only
+      # the pushed range and errors on a repository's first commit.
       - name: Scan full history for secrets
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz | tar xz gitleaks
+          ./gitleaks detect --source . --log-opts="--all" --redact -v
