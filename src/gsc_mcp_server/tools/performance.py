@@ -1,5 +1,5 @@
-"""Search Analytics tools: query_performance, top_queries, top_pages,
-compare_periods, export_query.
+"""Search Analytics tools: get_data_freshness, query_performance,
+top_queries, top_pages, compare_periods, export_query.
 
 All of them build the request through gsc/request.py, so the trap guards
 (dimensionFilterGroups wrapping, exclusive searchAppearance, half-specified
@@ -9,7 +9,7 @@ ranges, the 1,000-row inline cap) apply to every one.
 from __future__ import annotations
 
 import secrets
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Any, Literal
 
 from mcp.types import CallToolResult
@@ -20,12 +20,14 @@ from ..analysis.export import write_rows_csv
 from ..analysis.periods import retention_floor
 from ..analysis.shaping import performance_response, redact_rows, redaction_note
 from ..constants import (
+    DATA_LAG_DAYS,
     EXPORT_DEFAULT_ROWS,
     EXPORT_MAX_ROWS,
     MAX_ROW_LIMIT,
     DataState,
     Dimension,
 )
+from ..gsc.freshness import Freshness
 from ..gsc.pagination import iter_pages
 from ..gsc.request import build_search_analytics_request
 from ._common import (
@@ -73,6 +75,59 @@ def _log_fields(request: dict[str, Any], rows: int) -> dict[str, Any]:
 
 
 def register(server, context) -> None:
+    freshness = Freshness(context.client)
+
+    @server.tool(
+        name="get_data_freshness",
+        title="Check data freshness",
+        description=(
+            "The latest date with final (complete) data for a property, and "
+            "the latest date with any provisional data, checked against the "
+            "last 10 days. Use it before reporting 'yesterday' or the most "
+            "recent days: Search Console usually trails by 2 to 3 days. "
+            "Read-only."
+        ),
+        annotations=READ_ONLY,
+    )
+    def get_data_freshness(siteUrl: SiteUrl) -> CallToolResult:
+        if not context.config.allows(siteUrl):
+            return not_allowed(siteUrl)
+
+        def body():
+            info = freshness.check(siteUrl)
+            final, latest = info["latestFinalDate"], info["latestDate"]
+            if final:
+                text = (
+                    f"{siteUrl} | final data through {final} "
+                    f"({info['finalLagDays']} days ago)"
+                    + (f", provisional through {latest}" if latest else "")
+                )
+            else:
+                text = (
+                    f"{siteUrl} | no final web data in the last 10 days "
+                    f"(since {info['lookbackStart']}). The property may be new "
+                    "or have no traffic."
+                )
+            return result(text, {"ok": True, "siteUrl": siteUrl, **info}), {
+                "startDate": info["lookbackStart"],
+                "endDate": info["today"],
+            }
+
+        return run_tool("get_data_freshness", siteUrl, body)
+
+    def anchored_today(site_url: str) -> date | None:
+        """A 'today' for resolve_range that ends named windows on final data.
+
+        resolve_range ends a named window DATA_LAG_DAYS before `today`, so
+        shifting today to latest-final + lag ends it on the latest final day.
+        Explicit dates are left alone. Falls back to the fixed lag when the
+        property has no recent final data.
+        """
+        latest = freshness.latest_final(site_url)
+        if latest is None:
+            return None
+        return latest + timedelta(days=DATA_LAG_DAYS)
+
     def run_query(
         site_url: str, request: dict[str, Any]
     ) -> tuple[CallToolResult, dict[str, Any]]:
@@ -178,7 +233,9 @@ def register(server, context) -> None:
         title="Compare two periods",
         description=(
             "Diff performance between a window and the one before it (or the "
-            "same dates a year earlier), computed server-side. Returns totals "
+            "same dates a year earlier), computed server-side on final data "
+            "only. A named dateRange ends on the latest final day (see "
+            "get_data_freshness). Returns totals "
             "for both windows and per-key deltas sorted by absolute click "
             "change, with each key marked new, lost or changed. dimension=null "
             "compares property totals only. Read-only."
@@ -220,11 +277,15 @@ def register(server, context) -> None:
                 "filters": filter_dicts(filters),
                 "row_limit": MAX_ROW_LIMIT,
                 "search_type": searchType,
+                # Partial recent days would read as a drop.
+                "data_state": "final",
             }
+            explicit = bool(startDate or endDate)
             current = build_search_analytics_request(
                 date_range=dateRange,
                 start_date=startDate,
                 end_date=endDate,
+                today=None if explicit else anchored_today(siteUrl),
                 **common,
             )
             prev_start, prev_end = comparison_window(

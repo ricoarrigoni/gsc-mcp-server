@@ -155,7 +155,8 @@ async def test_compare_previous_year_beyond_retention_is_rejected(harness):
     )
     assert out.structured_content["reason"] == "invalid_request"
     assert "retention" in out.structured_content["message"]
-    assert harness.requests == []
+    # Only the freshness lookup reached Google, no comparison query.
+    assert [b["dimensions"] for b in harness.bodies()] == [["date"]]
 
 
 async def test_compare_previous_year_within_retention_uses_same_dates(harness):
@@ -192,3 +193,45 @@ def test_diff_marks_new_and_lost_and_keeps_position_absent():
     assert rows[("kept",)]["delta"]["position"] == -1.0
     assert "position" not in rows[("new",)]["delta"]
     assert diff_rows(current, previous)[0]["keys"] == ["new"]
+
+
+async def test_get_data_freshness_tool(harness):
+    final = (date.today() - timedelta(days=3)).isoformat()
+    latest = (date.today() - timedelta(days=1)).isoformat()
+    harness.queue(
+        {"rows": [{"keys": [final], "clicks": 1, "impressions": 1, "ctr": 1}]},
+        {"rows": [{"keys": [latest], "clicks": 1, "impressions": 1, "ctr": 1}]},
+    )
+    server = harness.server()
+    out = await harness.call(server, "get_data_freshness", siteUrl=SITE)
+    assert out.structured_content["latestFinalDate"] == final
+    assert out.structured_content["finalLagDays"] == 3
+    assert f"final data through {final}" in out.content[0].text
+
+
+async def test_compare_named_range_ends_on_the_latest_final_day(harness):
+    final = date.today() - timedelta(days=5)
+    harness.queue(
+        {
+            "rows": [
+                {"keys": [final.isoformat()], "clicks": 1, "impressions": 1, "ctr": 1}
+            ]
+        },
+    )
+    server = harness.server()
+    await harness.call(server, "compare_periods", siteUrl=SITE, dateRange="last_7_days")
+    _, current, previous = harness.bodies()
+    assert current["endDate"] == final.isoformat()
+    assert current["dataState"] == previous["dataState"] == "final"
+
+
+async def test_compare_explicit_dates_skip_the_freshness_lookup(harness):
+    server = harness.server()
+    await harness.call(
+        server,
+        "compare_periods",
+        siteUrl=SITE,
+        startDate="2026-09-08",
+        endDate="2026-09-14",
+    )
+    assert len(harness.requests) == 2
