@@ -1,0 +1,36 @@
+# --- Credentials. Never commit any of these. ---
+client_secret*.json
+credentials.json
+*-key.json
+*_key.json
+service-account*.json
+sa-*.json
+token.json
+tokens.json
+.gsc-mcp/
+.env
+.env.*
+!.env.example
+
+# --- Local data that could contain real property data ---
+exports/
+*.csv
+!tests/fixtures/*.csv
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- OS / editor ---
+.DS_Store
+.idea/
+.vscode/

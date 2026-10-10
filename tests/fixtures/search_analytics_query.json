@@ -1,0 +1,8 @@
+{
+  "rows": [
+    { "keys": ["blue widgets"], "clicks": 182, "impressions": 4201, "ctr": 0.043323, "position": 4.21 },
+    { "keys": ["widgets blue"], "clicks": 94, "impressions": 2810, "ctr": 0.033451, "position": 7.84 },
+    { "keys": ["cheap widgets"], "clicks": 31, "impressions": 1902, "ctr": 0.016298, "position": 12.07 }
+  ],
+  "responseAggregationType": "byProperty"
+}

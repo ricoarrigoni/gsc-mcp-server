@@ -1,0 +1,22 @@
+title = "gsc-mcp-server leak rules"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "google-oauth-client-secret-file"
+description = "Google OAuth client secret JSON"
+regex = '''"client_secret"\s*:\s*"[A-Za-z0-9_\-]{10,}"'''
+tags = ["google", "oauth"]
+
+[[rules]]
+id = "google-service-account-key"
+description = "Service account private key block"
+regex = '''-----BEGIN (RSA )?PRIVATE KEY-----'''
+tags = ["google", "service-account"]
+
+[[rules]]
+id = "google-refresh-token"
+description = "Google OAuth refresh token"
+regex = '''"refresh_token"\s*:\s*"1//[A-Za-z0-9_\-]{20,}"'''
+tags = ["google", "oauth"]
