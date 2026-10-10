@@ -12,8 +12,9 @@ from typing import Annotated, Any
 from mcp.types import CallToolResult
 from pydantic import Field
 
-from ..constants import URL_INSPECTION_MAX_URLS_PER_CALL
+from ..constants import URL_INSPECTION_DAILY_CAP, URL_INSPECTION_MAX_URLS_PER_CALL
 from ..errors import ApiError
+from ..gsc.quota import InspectionQuota
 from ._common import READ_ONLY, SiteUrl, not_allowed, result, run_tool
 
 
@@ -79,6 +80,8 @@ def format_inspections(items: list[dict[str, Any]]) -> str:
 
 
 def register(server, context) -> None:
+    quota = InspectionQuota(context.config.state_dir)
+
     @server.tool(
         name="inspect_url",
         title="Inspect URLs",
@@ -112,6 +115,22 @@ def register(server, context) -> None:
         def body():
             items: list[dict[str, Any]] = []
             for url in urls:
+                if not quota.try_reserve(siteUrl):
+                    items.append(
+                        {
+                            "url": url,
+                            "ok": False,
+                            "reason": "quota_guard",
+                            "message": (
+                                f"Refused locally: {quota.soft_cap} URL "
+                                "inspections already used today for this "
+                                f"property. Google allows "
+                                f"{URL_INSPECTION_DAILY_CAP} per day, reset at "
+                                "midnight Pacific time. Try again tomorrow."
+                            ),
+                        }
+                    )
+                    continue
                 try:
                     raw = context.client.inspect_url(siteUrl, url, languageCode)
                     items.append(summarise(url, raw))
@@ -129,6 +148,8 @@ def register(server, context) -> None:
                 "ok": inspected > 0,
                 "siteUrl": siteUrl,
                 "inspected": inspected,
+                "quotaUsedToday": quota.used(siteUrl),
+                "quotaSoftCap": quota.soft_cap,
                 "failed": len(items) - inspected,
                 "results": items,
             }

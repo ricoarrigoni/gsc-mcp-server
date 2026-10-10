@@ -4,6 +4,8 @@ import httpx
 import pytest
 from mcp.server.mcpserver.exceptions import ToolError
 
+from gsc_mcp_server.constants import URL_INSPECTION_SOFT_CAP
+from gsc_mcp_server.gsc.quota import STATE_FILE, _pacific_today
 from tests.conftest import load_fixture
 
 SITE = "sc-domain:example.com"
@@ -76,3 +78,28 @@ async def test_inspect_url_honours_the_allowlist(harness):
         server, "inspect_url", siteUrl=SITE, urls=["https://example.com/a"]
     )
     assert out.structured_content["reason"] == "property_not_allowed"
+
+
+async def test_inspect_url_refuses_locally_at_the_soft_cap(harness):
+    state = harness.tmp_path / "state"
+    state.mkdir()
+    (state / STATE_FILE).write_text(
+        json.dumps(
+            {
+                "date": _pacific_today().isoformat(),
+                "counts": {SITE: URL_INSPECTION_SOFT_CAP - 1},
+            }
+        )
+    )
+    server = harness.server()
+    out = await harness.call(
+        server,
+        "inspect_url",
+        siteUrl=SITE,
+        urls=["https://example.com/a", "https://example.com/b"],
+    )
+    results = out.structured_content["results"]
+    assert results[0]["ok"] is True
+    assert results[1]["reason"] == "quota_guard"
+    assert len(harness.requests) == 1
+    assert out.structured_content["quotaUsedToday"] == URL_INSPECTION_SOFT_CAP
