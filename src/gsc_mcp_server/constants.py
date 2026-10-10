@@ -85,6 +85,9 @@ TYPES_WITHOUT_POSITION: Final = frozenset({"discover", "googleNews"})
 DEFAULT_ROW_LIMIT: Final = 1000
 MAX_ROW_LIMIT: Final = 1000
 API_MAX_ROW_LIMIT: Final = 25_000
+# export_query pages at API_MAX_ROW_LIMIT up to this many rows in total.
+EXPORT_DEFAULT_ROWS: Final = 100_000
+EXPORT_MAX_ROWS: Final = 500_000
 
 # Search Console data trails real time by 2 to 3 days.
 DATA_LAG_DAYS: Final = 3

@@ -1,5 +1,5 @@
 """Search Analytics tools: query_performance, top_queries, top_pages,
-compare_periods.
+compare_periods, export_query.
 
 All of them build the request through gsc/request.py, so the trap guards
 (dimensionFilterGroups wrapping, exclusive searchAppearance, half-specified
@@ -8,16 +8,25 @@ ranges, the 1,000-row inline cap) apply to every one.
 
 from __future__ import annotations
 
-from datetime import date
+import secrets
+from datetime import UTC, date, datetime
 from typing import Annotated, Any, Literal
 
 from mcp.types import CallToolResult
 from pydantic import Field
 
 from ..analysis.compare import comparison_response, comparison_window
+from ..analysis.export import write_rows_csv
 from ..analysis.periods import retention_floor
 from ..analysis.shaping import performance_response
-from ..constants import MAX_ROW_LIMIT, DataState, Dimension
+from ..constants import (
+    EXPORT_DEFAULT_ROWS,
+    EXPORT_MAX_ROWS,
+    MAX_ROW_LIMIT,
+    DataState,
+    Dimension,
+)
+from ..gsc.pagination import iter_pages
 from ..gsc.request import build_search_analytics_request
 from ._common import (
     READ_ONLY,
@@ -245,3 +254,83 @@ def register(server, context) -> None:
             }
 
         return run_tool("compare_periods", siteUrl, body)
+
+    @server.tool(
+        name="export_query",
+        title="Export performance data to CSV",
+        description=(
+            "Write a large Search Analytics pull to a CSV file on this "
+            "machine and return the file path and row count, never the rows. "
+            f"Pages through the API up to maxRows (at most {EXPORT_MAX_ROWS:,}). "
+            "Use this instead of query_performance when more than 1,000 rows "
+            "are needed. Read-only against Search Console."
+        ),
+        annotations=READ_ONLY,
+    )
+    def export_query(
+        siteUrl: SiteUrl,
+        dimensions: Annotated[
+            list[Dimension] | None,
+            Field(description="Group by these. Default ['query']."),
+        ] = None,
+        dateRange: DateRangeArg = None,
+        startDate: StartDate = None,
+        endDate: EndDate = None,
+        filters: FiltersArg = None,
+        searchType: SearchTypeArg = "web",
+        dataState: DataStateArg = "all",
+        maxRows: Annotated[
+            int,
+            Field(ge=1, le=EXPORT_MAX_ROWS, description="Stop after this many rows."),
+        ] = EXPORT_DEFAULT_ROWS,
+    ) -> CallToolResult:
+        if not context.config.allows(siteUrl):
+            return not_allowed(siteUrl)
+
+        def body():
+            request = build_search_analytics_request(
+                dimensions=dimensions,
+                date_range=dateRange,
+                start_date=startDate,
+                end_date=endDate,
+                filters=filter_dicts(filters),
+                search_type=searchType,
+                data_state=dataState,
+            )
+            dims = request["dimensions"]
+            stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+            name = (
+                f"gsc-export-{stamp}-{'-'.join(dims) or 'totals'}-"
+                f"{secrets.token_hex(3)}.csv"
+            )
+            path = context.config.exports_path / name
+            count = write_rows_csv(
+                path,
+                dims,
+                iter_pages(context.client, siteUrl, request, max_rows=maxRows),
+            )
+            truncated = count >= maxRows
+            structured = {
+                "ok": True,
+                "siteUrl": siteUrl,
+                "path": str(path),
+                "rowCount": count,
+                "columns": [*dims, "clicks", "impressions", "ctr", "position"],
+                "startDate": request["startDate"],
+                "endDate": request["endDate"],
+                "searchType": searchType,
+                "truncated": truncated,
+            }
+            text = (
+                f"Wrote {count:,} row{'' if count == 1 else 's'} to {path}\n"
+                f"{siteUrl} | {'+'.join(dims) or 'totals'} | "
+                f"{request['startDate']} to {request['endDate']}"
+                + (
+                    f"\nStopped at maxRows={maxRows:,}; more rows may exist."
+                    if truncated
+                    else ""
+                )
+            )
+            return result(text, structured), _log_fields(request, count)
+
+        return run_tool("export_query", siteUrl, body)

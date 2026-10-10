@@ -64,6 +64,9 @@ class Harness:
         self.requests: list[httpx.Request] = []
         self.responses: list[httpx.Response] = []
         self.default = httpx.Response(200, json={})
+        # Optional function from request body to response JSON, for tests
+        # that need the reply to depend on the request (pagination).
+        self.responder: Callable[[dict[str, Any]], dict[str, Any]] | None = None
         self.tmp_path = tmp_path
 
     def queue(self, *responses: httpx.Response | dict[str, Any]) -> None:
@@ -74,7 +77,11 @@ class Harness:
 
     def _handle(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
-        return self.responses.pop(0) if self.responses else self.default
+        if self.responses:
+            return self.responses.pop(0)
+        if self.responder is not None:
+            return httpx.Response(200, json=self.responder(json.loads(request.content)))
+        return self.default
 
     def bodies(self) -> list[dict[str, Any]]:
         return [json.loads(r.content) for r in self.requests if r.content]

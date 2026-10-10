@@ -139,6 +139,14 @@ def run_tool(
     except GscError as exc:
         outcome = exc.reason
         return failure_result(exc.reason, str(exc))
+    except OSError as exc:
+        # export_query writing to disk: a full disk or an unwritable dir.
+        outcome = "io_error"
+        return failure_result(
+            "io_error",
+            f"Could not write the file: {exc.strerror or exc}. Check "
+            "GSC_EXPORT_DIR points at a writable directory.",
+        )
     finally:
         log_call(
             tool,
