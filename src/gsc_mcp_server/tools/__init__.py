@@ -14,10 +14,10 @@ logger = logging.getLogger(__name__)
 
 
 def register_all(server, context) -> None:
-    from . import performance, properties
+    from . import performance, properties, urls
 
-    modules = [properties, performance]
-    # TODO: add urls, sitemaps as they are implemented.
+    modules = [properties, performance, urls]
+    # TODO: add sitemaps.
     for module in modules:
         module.register(server, context)
     logger.info("registered %d tool module(s)", len(modules))
