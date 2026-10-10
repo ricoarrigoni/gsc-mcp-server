@@ -102,6 +102,11 @@ URL_INSPECTION_MAX_URLS_PER_CALL: Final = 10
 
 # --- Caveat text reused in every performance response ---------------------
 ANONYMISED_QUERY_NOTE: Final = (
-    "Query rows exclude anonymised queries, so they will not sum to the "
-    "property totals. Grouping by page or query also drops some rows."
+    "Query rows exclude anonymised queries, and grouping by query drops some "
+    "rows, so they will not sum to the property totals."
 )
+PAGE_GROUPING_NOTE: Final = (
+    "Grouping by page drops some rows to keep the query fast, so page rows "
+    "may not sum to the property totals."
+)
+TOTALS_NOTE: Final = "Property totals include anonymised queries."

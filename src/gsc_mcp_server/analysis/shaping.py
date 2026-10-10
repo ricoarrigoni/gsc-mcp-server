@@ -10,7 +10,12 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from ..constants import ANONYMISED_QUERY_NOTE, TYPES_WITHOUT_POSITION
+from ..constants import (
+    ANONYMISED_QUERY_NOTE,
+    PAGE_GROUPING_NOTE,
+    TOTALS_NOTE,
+    TYPES_WITHOUT_POSITION,
+)
 
 # GSC_REDACT_PII: a blunt filter, not a guarantee. People search for their
 # own email address, phone number or account and card numbers; rows whose
@@ -58,6 +63,26 @@ def redaction_note(dropped: int) -> str:
         "whose query looked like personal data, so totals here are lower "
         "than in Search Console."
     )
+
+
+def grouping_notes(dimensions: list[str]) -> list[str]:
+    """The caveat that applies to this grouping, and only that one."""
+    if not dimensions:
+        return [TOTALS_NOTE]
+    if "query" in dimensions:
+        return [ANONYMISED_QUERY_NOTE]
+    if "page" in dimensions:
+        return [PAGE_GROUPING_NOTE]
+    return []
+
+
+def position_note(search_type: str | None) -> list[str]:
+    if search_type in TYPES_WITHOUT_POSITION:
+        return [
+            f"Google does not report position for search type "
+            f"{search_type!r}; treat it as unavailable, not an error."
+        ]
+    return []
 
 
 def compact_row(row: dict[str, Any]) -> dict[str, Any]:
@@ -145,20 +170,13 @@ def performance_response(
         f"{len(compact)} row{'' if len(compact) == 1 else 's'}{more}"
     )
 
-    notes = [ANONYMISED_QUERY_NOTE]
+    notes = grouping_notes(dimensions)
     if dropped:
         notes.append(redaction_note(dropped))
-    if request.get("type") in TYPES_WITHOUT_POSITION:
-        notes.append(
-            f"Google does not report position for search type "
-            f"{request['type']!r}; treat it as unavailable, not an error."
-        )
+    notes += position_note(request.get("type"))
 
-    text = (
-        f"{header}\n{format_table(compact)}\n\nNote: {' '.join(notes)}"
-        if compact
-        else f"{header}\nNo rows for this range.\n\nNote: {' '.join(notes)}"
-    )
+    body = format_table(compact) if compact else "No rows for this range."
+    text = f"{header}\n{body}" + (f"\n\nNote: {' '.join(notes)}" if notes else "")
 
     structured: dict[str, Any] = {
         "ok": True,

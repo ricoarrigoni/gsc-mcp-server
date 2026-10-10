@@ -10,9 +10,8 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from ..constants import ANONYMISED_QUERY_NOTE, TYPES_WITHOUT_POSITION
 from .periods import previous_period, subtract_months
-from .shaping import redact_rows, redaction_note
+from .shaping import grouping_notes, position_note, redact_rows, redaction_note
 
 
 def comparison_window(
@@ -147,7 +146,7 @@ def comparison_response(
 
     cur_tot, prev_tot = totals(current_rows), totals(previous_rows)
 
-    notes = [ANONYMISED_QUERY_NOTE]
+    notes = grouping_notes(dimensions)
     if dropped:
         notes.append(redaction_note(dropped))
     if truncated:
@@ -156,11 +155,7 @@ def comparison_response(
             "the top rows of either window may show as new or lost when they "
             "are not. Narrow with filters for an exact diff."
         )
-    if current_request.get("type") in TYPES_WITHOUT_POSITION:
-        notes.append(
-            f"Google does not report position for search type "
-            f"{current_request['type']!r}; treat it as unavailable, not an error."
-        )
+    notes += position_note(current_request.get("type"))
 
     header = (
         f"{site_url} | {'+'.join(dimensions) or 'totals'} | "

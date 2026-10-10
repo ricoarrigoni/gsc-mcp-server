@@ -68,11 +68,11 @@ def test_has_more_is_false_when_fewer_rows_than_the_limit():
     assert "nextStartRow" not in structured
 
 
-def test_every_response_carries_the_anonymised_query_caveat():
+def _notes(dimensions):
     request = {
         "startDate": "2026-09-01",
         "endDate": "2026-09-28",
-        "dimensions": ["query"],
+        "dimensions": dimensions,
         "rowLimit": 1000,
         "type": "web",
         "dataState": "all",
@@ -80,4 +80,17 @@ def test_every_response_carries_the_anonymised_query_caveat():
     _, structured = performance_response(
         site_url="sc-domain:example.com", request=request, rows=[]
     )
-    assert any("anonymised" in n for n in structured["notes"])
+    return " ".join(structured["notes"])
+
+
+def test_query_responses_carry_the_anonymised_query_caveat():
+    assert "anonymised" in _notes(["query"])
+    assert "anonymised" in _notes(["page", "query"])
+
+
+def test_caveats_match_the_grouping():
+    assert "drops some rows" in _notes(["page"])
+    assert "anonymised" not in _notes(["page"])
+    assert _notes(["date"]) == ""
+    assert _notes(["country", "device"]) == ""
+    assert _notes([]) == "Property totals include anonymised queries."
