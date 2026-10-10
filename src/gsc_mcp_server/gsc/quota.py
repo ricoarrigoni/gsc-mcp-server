@@ -74,13 +74,18 @@ class InspectionQuota:
         with self._lock:
             return int(self._load().get(site_url, 0))
 
-    def try_reserve(self, site_url: str) -> bool:
-        """Count one inspection if under the soft cap. False means refuse."""
+    def try_reserve(self, site_url: str) -> int | None:
+        """Count one inspection if under the soft cap.
+
+        Returns today's count including this one, or None to refuse. The
+        count is taken under the lock, so concurrent calls each see their own
+        position rather than whatever the file holds a moment later.
+        """
         with self._lock:
             counts = self._load()
             current = int(counts.get(site_url, 0))
             if current >= self._soft_cap:
-                return False
+                return None
             counts[site_url] = current + 1
             try:
                 self._save(counts)
@@ -88,4 +93,4 @@ class InspectionQuota:
                 # Failing open is right here: Google still enforces the real
                 # cap. Say so once per failure, without the property.
                 logger.warning("could not persist URL Inspection count: %s", exc)
-            return True
+            return current + 1

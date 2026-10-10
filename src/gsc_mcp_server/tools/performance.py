@@ -9,7 +9,7 @@ ranges, the 1,000-row inline cap) apply to every one.
 from __future__ import annotations
 
 import secrets
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Annotated, Any, Literal
 
 from mcp.types import CallToolResult
@@ -375,7 +375,8 @@ def register(server, context) -> None:
                 data_state=dataState,
             )
             dims = request["dimensions"]
-            stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+            # Local time, so the name matches the file's timestamp on disk.
+            stamp = datetime.now().astimezone().strftime("%Y%m%d-%H%M%S")
             name = (
                 f"gsc-export-{stamp}-{'-'.join(dims) or 'totals'}-"
                 f"{secrets.token_hex(3)}.csv"

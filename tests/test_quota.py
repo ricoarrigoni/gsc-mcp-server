@@ -10,9 +10,9 @@ SITE = "sc-domain:example.com"
 
 def test_refuses_at_the_soft_cap(tmp_path):
     quota = InspectionQuota(tmp_path, soft_cap=2, today=lambda: date(2026, 10, 1))
-    assert quota.try_reserve(SITE)
-    assert quota.try_reserve(SITE)
-    assert not quota.try_reserve(SITE)
+    assert quota.try_reserve(SITE) == 1
+    assert quota.try_reserve(SITE) == 2
+    assert quota.try_reserve(SITE) is None
     assert quota.used(SITE) == 2
 
 
@@ -27,7 +27,7 @@ def test_count_survives_a_restart_and_resets_next_day(tmp_path):
     InspectionQuota(tmp_path, soft_cap=1, today=lambda: day["value"]).try_reserve(SITE)
 
     again = InspectionQuota(tmp_path, soft_cap=1, today=lambda: day["value"])
-    assert not again.try_reserve(SITE)
+    assert again.try_reserve(SITE) is None
 
     day["value"] = date(2026, 10, 2)
     assert again.try_reserve(SITE)
@@ -44,3 +44,12 @@ def test_corrupt_state_file_starts_from_zero(tmp_path):
     (tmp_path / STATE_FILE).write_text("{not json")
     quota = InspectionQuota(tmp_path, soft_cap=1, today=lambda: date(2026, 10, 1))
     assert quota.try_reserve(SITE)
+
+
+def test_concurrent_reservations_each_get_a_distinct_count(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+
+    quota = InspectionQuota(tmp_path, soft_cap=100, today=lambda: date(2026, 10, 1))
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        counts = list(pool.map(lambda _: quota.try_reserve(SITE), range(40)))
+    assert sorted(counts) == list(range(1, 41))

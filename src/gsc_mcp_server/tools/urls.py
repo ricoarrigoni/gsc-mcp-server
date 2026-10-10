@@ -114,8 +114,10 @@ def register(server, context) -> None:
 
         def body():
             items: list[dict[str, Any]] = []
+            used: int | None = None
             for url in urls:
-                if not quota.try_reserve(siteUrl):
+                reserved = quota.try_reserve(siteUrl)
+                if reserved is None:
                     items.append(
                         {
                             "url": url,
@@ -131,6 +133,7 @@ def register(server, context) -> None:
                         }
                     )
                     continue
+                used = reserved
                 try:
                     raw = context.client.inspect_url(siteUrl, url, languageCode)
                     items.append(summarise(url, raw))
@@ -148,7 +151,7 @@ def register(server, context) -> None:
                 "ok": inspected > 0,
                 "siteUrl": siteUrl,
                 "inspected": inspected,
-                "quotaUsedToday": quota.used(siteUrl),
+                "quotaUsedToday": quota.used(siteUrl) if used is None else used,
                 "quotaSoftCap": quota.soft_cap,
                 "failed": len(items) - inspected,
                 "results": items,
